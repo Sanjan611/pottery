@@ -1,0 +1,28 @@
+{
+  "name": "@pottery/cli",
+  "version": "1.0.0",
+  "description": "CLI for Pottery",
+  "main": "dist/index.js",
+  "bin": {
+    "pottery": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "jest",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pottery/core": "workspace:*",
+    "@pottery/ai": "workspace:*",
+    "commander": "^11.1.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "boxen": "^5.1.2",
+    "cli-table3": "^0.6.3",
+    "open": "^8.4.2"
+  },
+  "devDependencies": {
+  }
+}
