@@ -1,0 +1,23 @@
+{
+  "name": "@pottery/ai",
+  "version": "1.0.0",
+  "description": "AI planning integration for Pottery using BAML",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "baml-cli generate && tsc -b",
+    "dev": "tsc -b --watch",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "test": "jest",
+    "baml:test": "baml-cli test",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pottery/core": "workspace:*",
+    "@boundaryml/baml": "^0.203.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.7"
+  }
+}
