@@ -5,11 +5,75 @@ import * as readline from 'readline';
 import { GlobalProjectStore, ProjectStore } from '@pottery/core';
 
 export const deleteCommand = new Command('delete')
-  .description('Delete a project')
-  .requiredOption('--project-id <id>', 'Project ID to delete')
+  .description('Delete a project or all projects')
+  .option('--project-id <id>', 'Project ID to delete')
+  .option('--all', 'Delete all projects')
   .action(async (options) => {
     try {
       const globalStore = new GlobalProjectStore();
+
+      // Validate that either --project-id or --all is provided
+      if (!options.projectId && !options.all) {
+        console.error(chalk.red('\n✗ Error: Must specify either --project-id or --all\n'));
+        console.log(chalk.gray('Examples:'));
+        console.log(chalk.gray('  pottery delete --project-id proj_123'));
+        console.log(chalk.gray('  pottery delete --all\n'));
+        process.exit(1);
+      }
+
+      // Validate that both options are not provided together
+      if (options.projectId && options.all) {
+        console.error(chalk.red('\n✗ Error: Cannot use --project-id and --all together\n'));
+        process.exit(1);
+      }
+
+      // Handle delete all
+      if (options.all) {
+        const projects = await globalStore.listProjects();
+
+        if (projects.length === 0) {
+          console.log(chalk.gray('\nNo projects to delete\n'));
+          process.exit(0);
+        }
+
+        // Display warning with all projects
+        console.log(chalk.yellow.bold('\n⚠️  Warning:'), `This will permanently delete ${chalk.red.bold(`ALL ${projects.length} projects`)}:\n`);
+
+        for (const project of projects) {
+          console.log(chalk.gray(`   • ${chalk.cyan(project.project_id)} - ${project.name || '(unnamed)'}`));
+        }
+        console.log('');
+
+        // Confirm deletion
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+
+        const confirmed = await new Promise<boolean>((resolve) => {
+          rl.question(chalk.yellow(`Type ${chalk.red.bold('DELETE ALL')} to confirm: `), (answer) => {
+            rl.close();
+            resolve(answer.trim() === 'DELETE ALL');
+          });
+        });
+
+        if (!confirmed) {
+          console.log(chalk.gray('\nDeletion cancelled\n'));
+          process.exit(0);
+        }
+
+        // Delete all projects
+        const spinner = ora('Deleting all projects...').start();
+        for (const project of projects) {
+          spinner.text = `Deleting ${project.project_id}...`;
+          await globalStore.deleteProject(project.project_id);
+        }
+        spinner.succeed(chalk.green(`Deleted all ${projects.length} projects`));
+        console.log('');
+        return;
+      }
+
+      // Handle single project deletion
       const store = new ProjectStore(options.projectId);
 
       // Check if project exists
