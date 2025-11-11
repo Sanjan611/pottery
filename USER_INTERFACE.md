@@ -110,6 +110,51 @@ Type project ID to confirm: proj_7x9k2m4n
 ✓ Project deleted
 ```
 
+#### Delete All Projects
+```bash
+pottery delete --all
+```
+
+**Behavior:**
+- Lists all projects that will be deleted
+- Shows warning with total project count
+- Requires user to type "DELETE ALL" to confirm
+- Permanently deletes all project data
+- Cannot be used together with `--project-id`
+
+**Example Output:**
+```
+⚠️  Warning: This will permanently delete ALL 3 projects:
+
+   • proj_7x9k2m4n - Collaborative task management app
+   • proj_3a8f1x2p - E-commerce platform
+   • proj_9m2k5n7q - Mobile fitness tracker
+
+Type DELETE ALL to confirm: DELETE ALL
+
+✓ Deleted all 3 projects
+```
+
+**Error Cases:**
+```
+# No option provided
+✗ Error: Must specify either --project-id or --all
+
+Examples:
+  pottery delete --project-id proj_123
+  pottery delete --all
+```
+
+```
+# Both options provided
+✗ Error: Cannot use --project-id and --all together
+```
+
+```
+# No projects to delete
+No projects to delete
+```
+
 ### Server Management
 
 #### Start Server
@@ -338,25 +383,27 @@ pottery cr delete --project-id <id> --cr-id <cr-id>
 
 ## Web UI (Read-Only Visualization)
 
+**MVP Implementation Status:**
+- ✅ **Graph View** - Fully implemented
+- ⏸️ **Change Requests View** - Deferred (described below for future reference)
+- ⏸️ **History View** - Deferred (described below for future reference)
+
 ### URL Structure
 ```
-http://localhost:3000/projects/<project-id>
+http://localhost:3000/                    # Home page (project list)
+http://localhost:3000/projects/<project-id>  # Project graph view
 ```
 
-### Main Layout
+### Main Layout (MVP)
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ 🎨 Pottery                                          │
-│                                                      │
+│ ← Back to Projects                                  │
 │ Project: proj_7x9k2m4n                              │
-│ Collaborative task management app                   │
-│                                                      │
-│ [Graph] [Change Requests] [History]                 │
 ├─────────────────────────────────────────────────────┤
 │                                                      │
 │                                                      │
-│              Main Content Area                       │
+│              Graph View (full screen)                │
 │                                                      │
 │                                                      │
 ├─────────────────────────────────────────────────────┤
@@ -368,7 +415,7 @@ http://localhost:3000/projects/<project-id>
 
 ### Views
 
-#### 1. Graph View (Default)
+#### 1. Graph View (Default) ✅ IMPLEMENTED
 
 **Purpose:** Interactive visualization of the entire product graph
 
@@ -399,7 +446,7 @@ http://localhost:3000/projects/<project-id>
 - Node type filter checkboxes
 - Reset view button
 
-#### 2. Node Detail Panel
+#### 2. Node Detail Panel ✅ IMPLEMENTED
 
 **Triggered by:** Clicking any node in graph view
 
@@ -478,7 +525,11 @@ For **UXSpec:**
 
 #### 3. Change Requests View
 
-**Layout:**
+**⏸️ Status: Deferred to post-MVP**
+
+This view is described for future implementation. In MVP, use CLI commands to manage CRs.
+
+**Planned Layout:**
 ```
 ┌─── Change Requests ──────────────────────┐
 │                                           │
@@ -531,9 +582,11 @@ Shows full CR information similar to `pottery cr show` output:
 
 #### 4. History View
 
-**Purpose:** Timeline of graph evolution
+**⏸️ Status: Deferred to post-MVP**
 
-**Layout:**
+This view is described for future implementation. In MVP, version snapshots are stored but not visualized.
+
+**Planned Layout:**
 ```
 ┌─── Version History ──────────────────────┐
 │                                           │
@@ -648,7 +701,8 @@ Snapshot of graph.json at specific version for history/diff
 |---------|---------|
 | `pottery create --intent "..."` | Create new project (generates CR-000) |
 | `pottery list` | List all projects |
-| `pottery delete --project-id <id>` | Delete project |
+| `pottery delete --project-id <id>` | Delete a single project |
+| `pottery delete --all` | Delete all projects |
 | `pottery serve --project-id <id> [--port 3000]` | Start web server (background) |
 | `pottery serve list` | List running servers |
 | `pottery serve stop [--port <port>]` | Stop server(s) |
@@ -662,8 +716,14 @@ Snapshot of graph.json at specific version for history/diff
 
 ## Out of Scope for MVP
 
+**Not Yet Implemented:**
+- Change Requests view in web UI (use CLI instead)
+- Version history view in web UI (files stored but not visualized)
+- In-browser graph editing (read-only for MVP)
+- Multiple project tabs/navigation
+
+**Future Features:**
 - Task execution (agents running tasks)
-- In-browser graph editing
 - Real-time collaboration
 - Status/priority workflow UI
 - Metrics dashboards

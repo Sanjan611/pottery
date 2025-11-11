@@ -168,8 +168,17 @@ Core entities to be implemented:
 - ChangeRequest
 
 **Interface:**
-- CLI tool for core operations
-- Web-based visualization for viewing product graph structure
+- **CLI tool** for core operations (create, change, apply, list, delete)
+- **Web-based visualization** (read-only for MVP) with:
+  - Interactive graph rendering with automatic hierarchical layout
+  - Zoom, pan, and minimap navigation
+  - Search nodes by name, ID, or description
+  - Filter by node type (Intent, SubIntent, Feature, Task, UXSpec)
+  - Click nodes to view detailed information, dependencies, and metadata
+  - Real-time updates (auto-refresh every 5 seconds)
+  - Color-coded nodes by entity type
+  - Hierarchical edge rendering showing parent-child relationships
+  - Dependency edge rendering (requires, blocks, impacts, supersedes)
 
 **Storage:** Graph-level version control with git-like diffs.
 
@@ -195,3 +204,10 @@ Core entities to be implemented:
 - **Metrics tracking:** Measuring SubIntent and UXSpec success criteria
 - **Effort estimation:** Both developer hours and LLM token costs
 - **Agent execution logs:** Tracking agent decisions, tool usage, and reasoning
+
+### **Web Visualization Enhancements:**
+- **ChangeRequest visualization:** Show pending CRs with highlighted affected nodes
+- **Version history view:** Timeline of graph evolution with diffs between versions
+- **Graph editing:** Drag nodes to reposition, add/remove nodes via UI, edit properties
+- **Export capabilities:** Export graph as PNG/SVG, export data as JSON
+- **Real-time collaboration:** Multi-user viewing with live updates and comments on nodes
