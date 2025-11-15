@@ -1,5 +1,7 @@
 import { GraphNode } from './Graph';
 import { Dependency } from './Dependency';
+import { ImpactReport } from '../analysis/ImpactAnalyzer';
+import { Layer } from './Layer';
 
 export enum CRStatus {
   Pending = "pending",
@@ -20,6 +22,19 @@ export interface ImpactMapEntry {
   reason: string;
 }
 
+export interface NodeChange {
+  node_id: string;
+  node_type: string;
+  action: "create" | "modify" | "delete";
+  changes?: Record<string, any>;
+}
+
+export interface CrossLayerChanges {
+  narrative: NodeChange[];
+  structure: NodeChange[];
+  specification: NodeChange[];
+}
+
 export interface ChangeRequest {
   id: string;                    // Format: "CR-XXX"
   project_id: string;
@@ -32,4 +47,7 @@ export interface ChangeRequest {
   impact_map: ImpactMapEntry[];
   created_at: string;
   applied_at?: string;
+  // Phase 4 additions
+  impactAnalysis?: ImpactReport;  // Full impact analysis across all layers
+  crossLayerChanges?: CrossLayerChanges;  // Changes organized by layer
 }

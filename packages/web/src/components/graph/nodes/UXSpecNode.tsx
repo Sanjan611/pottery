@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
-import { UXSpec } from '@pottery/core';
+import type { UXSpec } from '@pottery/core/types';
 
 interface UXSpecNodeProps {
   data: UXSpec;

@@ -1,6 +1,6 @@
 'use client';
 
-import type { GraphNode, Dependency, ProductIntent, SubIntent, Feature, Task, UXSpec, TaskType } from '@pottery/core';
+import type { GraphNode, Dependency, ProductIntent, SubIntent, Feature, Task, UXSpec, TaskType } from '@pottery/core/types';
 import { X } from 'lucide-react';
 
 interface NodeDetailProps {

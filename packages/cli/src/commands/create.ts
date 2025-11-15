@@ -9,9 +9,11 @@ import { generateProjectId, formatCRSummary } from '../output';
 export const createCommand = new Command('create')
   .description('Create a new project')
   .requiredOption('--intent <description>', 'Product intent description')
+  .option('--layered', 'Use layered architecture (Narrative → Structure → Specification)')
   .option('--debug', 'Enable debug logging')
   .action(async (options) => {
     const debug = options.debug || false;
+    const layered = options.layered || false;
     const spinner = ora('Creating new project...').start();
 
     try {
@@ -21,17 +23,29 @@ export const createCommand = new Command('create')
 
       // Initialize project storage
       const store = new ProjectStore(projectId);
-      await store.initialize();
-      if (debug) console.log(chalk.gray(`[DEBUG] Initialized project storage at ~/.pottery/projects/${projectId}`));
+
+      if (layered) {
+        await store.initializeLayered();
+        if (debug) console.log(chalk.gray(`[DEBUG] Initialized layered project storage at ~/.pottery/projects/${projectId}`));
+      } else {
+        await store.initialize();
+        if (debug) console.log(chalk.gray(`[DEBUG] Initialized project storage at ~/.pottery/projects/${projectId}`));
+      }
 
       spinner.text = 'AI analyzing intent and generating product structure...';
       if (debug) console.log(chalk.gray(`[DEBUG] User intent: "${options.intent}"`));
 
       // Use AI Planner to generate initial structure
       const planner = new Planner();
-      if (debug) console.log(chalk.gray('[DEBUG] Calling BAML CreateProjectStructure...'));
 
-      const crData = await planner.createProject(options.intent);
+      let crData;
+      if (layered) {
+        if (debug) console.log(chalk.gray('[DEBUG] Calling BAML CreateLayeredProject...'));
+        crData = await planner.createLayeredProject(options.intent);
+      } else {
+        if (debug) console.log(chalk.gray('[DEBUG] Calling BAML CreateProjectStructure...'));
+        crData = await planner.createProject(options.intent);
+      }
 
       if (debug) {
         console.log(chalk.gray(`[DEBUG] AI generation complete:`));
@@ -39,19 +53,38 @@ export const createCommand = new Command('create')
         console.log(chalk.gray(`  - New dependencies: ${crData.new_dependencies?.length || 0}`));
 
         if (crData.new_nodes && crData.new_nodes.length > 0) {
-          const nodeTypes = {
-            intent: crData.new_nodes.filter(n => n.id.startsWith('intent-')).length,
-            subintent: crData.new_nodes.filter(n => n.id.startsWith('subintent-')).length,
-            feature: crData.new_nodes.filter(n => n.id.startsWith('feature-')).length,
-            task: crData.new_nodes.filter(n => n.id.startsWith('task-')).length,
-            uxspec: crData.new_nodes.filter(n => n.id.startsWith('uxspec-')).length,
-          };
-          console.log(chalk.gray(`  - Node breakdown:`));
-          console.log(chalk.gray(`    • ProductIntents: ${nodeTypes.intent}`));
-          console.log(chalk.gray(`    • SubIntents: ${nodeTypes.subintent}`));
-          console.log(chalk.gray(`    • Features: ${nodeTypes.feature}`));
-          console.log(chalk.gray(`    • Tasks: ${nodeTypes.task}`));
-          console.log(chalk.gray(`    • UXSpecs: ${nodeTypes.uxspec}`));
+          if (layered) {
+            const nodeTypes = {
+              epic: crData.new_nodes.filter(n => n.id.startsWith('epic-')).length,
+              story: crData.new_nodes.filter(n => n.id.startsWith('story-')).length,
+              capability: crData.new_nodes.filter(n => n.id.startsWith('cap-')).length,
+              requirement: crData.new_nodes.filter(n => n.id.startsWith('req-')).length,
+              task: crData.new_nodes.filter(n => n.id.startsWith('task-')).length,
+            };
+            console.log(chalk.gray(`  - Node breakdown (Layered):`));
+            console.log(chalk.gray(`    📖 Narrative Layer:`));
+            console.log(chalk.gray(`      • Epics: ${nodeTypes.epic}`));
+            console.log(chalk.gray(`      • User Stories: ${nodeTypes.story}`));
+            console.log(chalk.gray(`    🔗 Structure Layer:`));
+            console.log(chalk.gray(`      • Capabilities: ${nodeTypes.capability}`));
+            console.log(chalk.gray(`    ⚙️  Specification Layer:`));
+            console.log(chalk.gray(`      • Technical Requirements: ${nodeTypes.requirement}`));
+            console.log(chalk.gray(`      • Tasks: ${nodeTypes.task}`));
+          } else {
+            const nodeTypes = {
+              intent: crData.new_nodes.filter(n => n.id.startsWith('intent-')).length,
+              subintent: crData.new_nodes.filter(n => n.id.startsWith('subintent-')).length,
+              feature: crData.new_nodes.filter(n => n.id.startsWith('feature-')).length,
+              task: crData.new_nodes.filter(n => n.id.startsWith('task-')).length,
+              uxspec: crData.new_nodes.filter(n => n.id.startsWith('uxspec-')).length,
+            };
+            console.log(chalk.gray(`  - Node breakdown:`));
+            console.log(chalk.gray(`    • ProductIntents: ${nodeTypes.intent}`));
+            console.log(chalk.gray(`    • SubIntents: ${nodeTypes.subintent}`));
+            console.log(chalk.gray(`    • Features: ${nodeTypes.feature}`));
+            console.log(chalk.gray(`    • Tasks: ${nodeTypes.task}`));
+            console.log(chalk.gray(`    • UXSpecs: ${nodeTypes.uxspec}`));
+          }
         }
       }
 

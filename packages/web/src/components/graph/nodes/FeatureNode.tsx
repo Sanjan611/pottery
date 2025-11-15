@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
-import { Feature } from '@pottery/core';
+import type { Feature } from '@pottery/core/types';
 
 interface FeatureNodeProps {
   data: Feature;

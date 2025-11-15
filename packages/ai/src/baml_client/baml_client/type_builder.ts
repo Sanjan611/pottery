@@ -27,17 +27,35 @@ export { FieldType, EnumBuilder, ClassBuilder }
 export default class TypeBuilder {
     private tb: _TypeBuilder;
     
+    Capability: ClassViewer<'Capability', "name" | "description" | "linkedUserStoryNames">;
+    
     ChangeRequestPlan: ClassViewer<'ChangeRequestPlan', "description" | "new_features" | "modified_features" | "new_tasks" | "modified_tasks" | "impact_analysis">;
     
     Dependency: ClassViewer<'Dependency', "from_description" | "to_description" | "type">;
+    
+    Epic: ClassViewer<'Epic', "name" | "description" | "userStoryNames">;
     
     Feature: ClassViewer<'Feature', "name" | "description" | "linked_intent" | "tasks" | "ux_spec">;
     
     FeatureModification: ClassViewer<'FeatureModification', "feature_name" | "reason" | "new_tasks" | "updated_tasks">;
     
+    FlowAction: ClassViewer<'FlowAction', "name" | "description" | "triggerType" | "parentScreenName" | "nextScreenName" | "linkedCapabilityNames">;
+    
+    FlowScreen: ClassViewer<'FlowScreen', "name" | "description" | "actionNames">;
+    
+    FlowToCapabilityMapping: ClassViewer<'FlowToCapabilityMapping', "flowActionName" | "capabilityNames" | "rationale">;
+    
     ImpactAnalysis: ClassViewer<'ImpactAnalysis', "affected_features" | "affected_tasks" | "reasoning" | "risk_level">;
     
+    LayeredProject: ClassViewer<'LayeredProject', "narrativeLayer" | "structureLayer" | "specificationLayer">;
+    
+    NarrativeLayer: ClassViewer<'NarrativeLayer', "epics" | "userStories">;
+    
     ProductIntent: ClassViewer<'ProductIntent', "name" | "description" | "sub_intents">;
+    
+    SpecificationLayer: ClassViewer<'SpecificationLayer', "technicalRequirements" | "tasks">;
+    
+    StructureLayer: ClassViewer<'StructureLayer', "capabilities" | "flowScreens" | "flowActions" | "mappings">;
     
     SubIntent: ClassViewer<'SubIntent', "name" | "description" | "features">;
     
@@ -47,26 +65,38 @@ export default class TypeBuilder {
     
     TaskUpdate: ClassViewer<'TaskUpdate', "original_description" | "new_description" | "reason">;
     
+    TechnicalRequirement: ClassViewer<'TechnicalRequirement', "type" | "specification" | "linkedCapabilityNames">;
+    
     UXSpec: ClassViewer<'UXSpec', "experience_goal" | "design_refs">;
+    
+    UserStory: ClassViewer<'UserStory', "narrative" | "acceptanceCriteria" | "epicName" | "linkedCapabilityNames">;
     
     
     DependencyType: EnumViewer<'DependencyType', "Requires" | "Blocks" | "Impacts" | "Supersedes">;
+    
+    FlowActionTriggerType: EnumViewer<'FlowActionTriggerType', "User" | "System">;
     
     RiskLevel: EnumViewer<'RiskLevel', "Low" | "Medium" | "High">;
     
     TaskType: EnumViewer<'TaskType', "Backend" | "Frontend" | "Test" | "Infrastructure">;
     
+    TechnicalRequirementType: EnumViewer<'TechnicalRequirementType', "Performance" | "Security" | "Scalability" | "Reliability" | "Other">;
+    
 
     constructor() {
         this.tb = new _TypeBuilder({
           classes: new Set([
-            "ChangeRequestPlan","Dependency","Feature","FeatureModification","ImpactAnalysis","ProductIntent","SubIntent","Task","TaskModification","TaskUpdate","UXSpec",
+            "Capability","ChangeRequestPlan","Dependency","Epic","Feature","FeatureModification","FlowAction","FlowScreen","FlowToCapabilityMapping","ImpactAnalysis","LayeredProject","NarrativeLayer","ProductIntent","SpecificationLayer","StructureLayer","SubIntent","Task","TaskModification","TaskUpdate","TechnicalRequirement","UXSpec","UserStory",
           ]),
           enums: new Set([
-            "DependencyType","RiskLevel","TaskType",
+            "DependencyType","FlowActionTriggerType","RiskLevel","TaskType","TechnicalRequirementType",
           ]),
           runtime: DO_NOT_USE_DIRECTLY_UNLESS_YOU_KNOW_WHAT_YOURE_DOING_RUNTIME
         });
+        
+        this.Capability = this.tb.classViewer("Capability", [
+          "name","description","linkedUserStoryNames",
+        ]);
         
         this.ChangeRequestPlan = this.tb.classViewer("ChangeRequestPlan", [
           "description","new_features","modified_features","new_tasks","modified_tasks","impact_analysis",
@@ -74,6 +104,10 @@ export default class TypeBuilder {
         
         this.Dependency = this.tb.classViewer("Dependency", [
           "from_description","to_description","type",
+        ]);
+        
+        this.Epic = this.tb.classViewer("Epic", [
+          "name","description","userStoryNames",
         ]);
         
         this.Feature = this.tb.classViewer("Feature", [
@@ -84,12 +118,40 @@ export default class TypeBuilder {
           "feature_name","reason","new_tasks","updated_tasks",
         ]);
         
+        this.FlowAction = this.tb.classViewer("FlowAction", [
+          "name","description","triggerType","parentScreenName","nextScreenName","linkedCapabilityNames",
+        ]);
+        
+        this.FlowScreen = this.tb.classViewer("FlowScreen", [
+          "name","description","actionNames",
+        ]);
+        
+        this.FlowToCapabilityMapping = this.tb.classViewer("FlowToCapabilityMapping", [
+          "flowActionName","capabilityNames","rationale",
+        ]);
+        
         this.ImpactAnalysis = this.tb.classViewer("ImpactAnalysis", [
           "affected_features","affected_tasks","reasoning","risk_level",
         ]);
         
+        this.LayeredProject = this.tb.classViewer("LayeredProject", [
+          "narrativeLayer","structureLayer","specificationLayer",
+        ]);
+        
+        this.NarrativeLayer = this.tb.classViewer("NarrativeLayer", [
+          "epics","userStories",
+        ]);
+        
         this.ProductIntent = this.tb.classViewer("ProductIntent", [
           "name","description","sub_intents",
+        ]);
+        
+        this.SpecificationLayer = this.tb.classViewer("SpecificationLayer", [
+          "technicalRequirements","tasks",
+        ]);
+        
+        this.StructureLayer = this.tb.classViewer("StructureLayer", [
+          "capabilities","flowScreens","flowActions","mappings",
         ]);
         
         this.SubIntent = this.tb.classViewer("SubIntent", [
@@ -108,13 +170,25 @@ export default class TypeBuilder {
           "original_description","new_description","reason",
         ]);
         
+        this.TechnicalRequirement = this.tb.classViewer("TechnicalRequirement", [
+          "type","specification","linkedCapabilityNames",
+        ]);
+        
         this.UXSpec = this.tb.classViewer("UXSpec", [
           "experience_goal","design_refs",
+        ]);
+        
+        this.UserStory = this.tb.classViewer("UserStory", [
+          "narrative","acceptanceCriteria","epicName","linkedCapabilityNames",
         ]);
         
         
         this.DependencyType = this.tb.enumViewer("DependencyType", [
           "Requires","Blocks","Impacts","Supersedes",
+        ]);
+        
+        this.FlowActionTriggerType = this.tb.enumViewer("FlowActionTriggerType", [
+          "User","System",
         ]);
         
         this.RiskLevel = this.tb.enumViewer("RiskLevel", [
@@ -123,6 +197,10 @@ export default class TypeBuilder {
         
         this.TaskType = this.tb.enumViewer("TaskType", [
           "Backend","Frontend","Test","Infrastructure",
+        ]);
+        
+        this.TechnicalRequirementType = this.tb.enumViewer("TechnicalRequirementType", [
+          "Performance","Security","Scalability","Reliability","Other",
         ]);
         
     }

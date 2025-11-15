@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import type { GraphNode, Dependency } from '@pottery/core';
+import type { GraphNode, Dependency, Layer } from '@pottery/core/types';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -11,11 +11,29 @@ export interface GraphData {
     created_at: string;
     last_modified: string;
   };
+  isLayered?: boolean;
+  layer?: Layer;
+  crossLayerDependencies?: any[];
 }
 
-export function useGraph(projectId: string) {
+export function useGraph(projectId: string, layer?: Layer | 'all', graph?: 'feature' | 'flow' | 'both') {
+  const url = projectId 
+    ? (() => {
+        const baseUrl = `/api/projects/${projectId}/graph`;
+        const params = new URLSearchParams();
+        if (layer && layer !== 'all') {
+          params.set('layer', layer);
+        }
+        if (graph && graph !== 'both') {
+          params.set('graph', graph);
+        }
+        const queryString = params.toString();
+        return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+      })()
+    : null;
+
   const { data, error, isLoading } = useSWR<GraphData>(
-    projectId ? `/api/projects/${projectId}/graph` : null,
+    url,
     fetcher,
     {
       refreshInterval: 5000, // Refresh every 5 seconds

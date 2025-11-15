@@ -22,7 +22,7 @@ import type { BamlRuntime, FunctionResult, BamlCtxManager, Image, Audio, Pdf, Vi
 import { toBamlError, type HTTPRequest } from "@boundaryml/baml"
 import type { Checked, Check, RecursivePartialNull as MovedRecursivePartialNull } from "./types"
 import type * as types from "./types"
-import type {ChangeRequestPlan, Dependency, DependencyType, Feature, FeatureModification, ImpactAnalysis, ProductIntent, RiskLevel, SubIntent, Task, TaskModification, TaskType, TaskUpdate, UXSpec} from "./types"
+import type {Capability, ChangeRequestPlan, Dependency, DependencyType, Epic, Feature, FeatureModification, FlowAction, FlowActionTriggerType, FlowScreen, FlowToCapabilityMapping, ImpactAnalysis, LayeredProject, NarrativeLayer, ProductIntent, RiskLevel, SpecificationLayer, StructureLayer, SubIntent, Task, TaskModification, TaskType, TaskUpdate, TechnicalRequirement, TechnicalRequirementType, UXSpec, UserStory} from "./types"
 import type TypeBuilder from "./type_builder"
 import { HttpRequest, HttpStreamRequest } from "./sync_request"
 import { LlmResponseParser, LlmStreamParser } from "./parser"
@@ -117,6 +117,62 @@ export class BamlSyncClient {
     }
   }
   
+  CreateLayeredProject(
+      user_intent: string,
+      __baml_options__?: BamlCallOptions
+  ): types.LayeredProject {
+    try {
+      const options = { ...this.bamlOptions, ...(__baml_options__ || {}) }
+      const collector = options.collector ? (Array.isArray(options.collector) ? options.collector : [options.collector]) : [];
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      const raw = this.runtime.callFunctionSync(
+        "CreateLayeredProject",
+        {
+          "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        options.tb?.__tb(),
+        options.clientRegistry,
+        collector,
+        env,
+      )
+      return raw.parsed(false) as types.LayeredProject
+    } catch (error: any) {
+      throw toBamlError(error);
+    }
+  }
+  
+  CreateNarrativeLayer(
+      user_intent: string,
+      __baml_options__?: BamlCallOptions
+  ): types.NarrativeLayer {
+    try {
+      const options = { ...this.bamlOptions, ...(__baml_options__ || {}) }
+      const collector = options.collector ? (Array.isArray(options.collector) ? options.collector : [options.collector]) : [];
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      const raw = this.runtime.callFunctionSync(
+        "CreateNarrativeLayer",
+        {
+          "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        options.tb?.__tb(),
+        options.clientRegistry,
+        collector,
+        env,
+      )
+      return raw.parsed(false) as types.NarrativeLayer
+    } catch (error: any) {
+      throw toBamlError(error);
+    }
+  }
+  
   CreateProjectStructure(
       user_intent: string,
       __baml_options__?: BamlCallOptions
@@ -140,6 +196,62 @@ export class BamlSyncClient {
         env,
       )
       return raw.parsed(false) as types.ProductIntent
+    } catch (error: any) {
+      throw toBamlError(error);
+    }
+  }
+  
+  CreateSpecificationLayer(
+      structure: types.StructureLayer,
+      __baml_options__?: BamlCallOptions
+  ): types.SpecificationLayer {
+    try {
+      const options = { ...this.bamlOptions, ...(__baml_options__ || {}) }
+      const collector = options.collector ? (Array.isArray(options.collector) ? options.collector : [options.collector]) : [];
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      const raw = this.runtime.callFunctionSync(
+        "CreateSpecificationLayer",
+        {
+          "structure": structure
+        },
+        this.ctxManager.cloneContext(),
+        options.tb?.__tb(),
+        options.clientRegistry,
+        collector,
+        env,
+      )
+      return raw.parsed(false) as types.SpecificationLayer
+    } catch (error: any) {
+      throw toBamlError(error);
+    }
+  }
+  
+  CreateStructureLayer(
+      narrative: types.NarrativeLayer,
+      __baml_options__?: BamlCallOptions
+  ): types.StructureLayer {
+    try {
+      const options = { ...this.bamlOptions, ...(__baml_options__ || {}) }
+      const collector = options.collector ? (Array.isArray(options.collector) ? options.collector : [options.collector]) : [];
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      const raw = this.runtime.callFunctionSync(
+        "CreateStructureLayer",
+        {
+          "narrative": narrative
+        },
+        this.ctxManager.cloneContext(),
+        options.tb?.__tb(),
+        options.clientRegistry,
+        collector,
+        env,
+      )
+      return raw.parsed(false) as types.StructureLayer
     } catch (error: any) {
       throw toBamlError(error);
     }

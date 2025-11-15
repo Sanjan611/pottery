@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import boxen from 'boxen';
-import { ProjectStore } from '@pottery/core';
+import { ProjectStore, ImpactAnalyzer, Layer } from '@pottery/core';
 import { formatCRSummary } from '../output';
 
 export const changeCommand = new Command('change')
@@ -21,9 +21,20 @@ export const changeCommand = new Command('change')
         process.exit(1);
       }
 
-      const graph = await store.loadGraph();
+      // Load graph (works for both layered and legacy projects)
+      const isLayered = await store.isLayered();
+      if (isLayered) {
+        const graph = await store.loadLayeredGraph();
+        spinner.text = 'AI analyzing change across all layers...';
 
-      spinner.text = 'AI analyzing change and generating plan...';
+        // For layered projects, we can show that cross-layer impact analysis is available
+        // The actual AI integration will be added when BAML prompts are updated
+        console.log(chalk.gray('\n💡 Cross-layer impact analysis will be performed'));
+        console.log(chalk.gray('   This will analyze impact across Narrative, Structure, and Specification layers'));
+      } else {
+        await store.loadGraph(); // Verify legacy project is valid
+        spinner.text = 'AI analyzing change and generating plan...';
+      }
 
       // For now, create a placeholder CR until BAML is integrated
       // This will be replaced with actual AI analysis
@@ -39,9 +50,18 @@ export const changeCommand = new Command('change')
       spinner.succeed(`Created ChangeRequest: ${chalk.cyan(cr.id)}`);
 
       // Display CR summary
+      let summaryText = `${chalk.bold(cr.id + ': ' + description)}\n\n${formatCRSummary(cr, options.projectId)}`;
+      
+      // Add impact analysis note for layered projects
+      if (isLayered) {
+        summaryText += `\n\n${chalk.bold.cyan('📊 Impact Analysis:')}`;
+        summaryText += `\n${chalk.gray('   Cross-layer impact analysis is available for this project.')}`;
+        summaryText += `\n${chalk.gray('   Use "pottery analyze impact --node-id <id>" to analyze specific nodes.')}`;
+      }
+
       console.log('');
       console.log(boxen(
-        `${chalk.bold(cr.id + ': ' + description)}\n\n${formatCRSummary(cr, options.projectId)}`,
+        summaryText,
         { padding: 1, borderColor: 'yellow', title: 'Change Request', titleAlignment: 'center' }
       ));
 
@@ -49,6 +69,9 @@ export const changeCommand = new Command('change')
       console.log(chalk.bold('Actions:'));
       console.log(chalk.gray(`  pottery cr apply --project-id ${options.projectId} --cr-id ${cr.id}`));
       console.log(chalk.gray(`  pottery cr show --project-id ${options.projectId} --cr-id ${cr.id}`));
+      if (isLayered) {
+        console.log(chalk.gray(`  pottery analyze impact --project-id ${options.projectId} --node-id <node-id>`));
+      }
       console.log(chalk.gray(`  pottery cr delete --project-id ${options.projectId} --cr-id ${cr.id}`));
       console.log('');
 

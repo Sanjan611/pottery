@@ -1,3 +1,5 @@
+import { Layer } from './Layer';
+
 export enum TaskType {
   Backend = "backend",
   Frontend = "frontend",
@@ -11,6 +13,7 @@ export interface Task {
   type: TaskType;
   description: string;
   version: string;
+  layer: Layer.Specification;
   dependencies: string[];        // Dependency IDs
   created_at: string;
   updated_at: string;

@@ -1,12 +1,13 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { Graph, SerializableGraph, GraphNode } from '../models/Graph';
+import { Graph, SerializableGraph, GraphNode, LayeredGraph, SerializableLayeredGraph } from '../models/Graph';
 import { ChangeRequest, CRStatus } from '../models/ChangeRequest';
 import { ProjectMetadata } from '../models/Project';
 import { DAGValidator } from '../validation/dag';
 import { VersionUtil } from '../validation/versioning';
 import { DependencyType } from '../models/Dependency';
+import { FlowToCapabilityMapping } from '../models/FlowToCapabilityMapping';
 
 export class ProjectStore {
   private basePath: string;
@@ -26,6 +27,7 @@ export class ProjectStore {
     await fs.ensureDir(this.basePath);
     await fs.ensureDir(path.join(this.basePath, 'change-requests'));
     await fs.ensureDir(path.join(this.basePath, 'versions'));
+    await fs.ensureDir(path.join(this.basePath, 'layers'));
 
     // Create initial metadata
     const metadata: ProjectMetadata = {
@@ -157,7 +159,7 @@ export class ProjectStore {
     // Generate CR ID
     const crId = await this.getNextCRId();
 
-    const fullCR: ChangeRequest = {
+    const fullCR: ChangeRequest & { _mappings?: any[] } = {
       id: crId,
       project_id: this.projectId,
       initiator: cr.initiator || 'user',
@@ -168,9 +170,14 @@ export class ProjectStore {
       new_dependencies: cr.new_dependencies || [],
       impact_map: cr.impact_map || [],
       created_at: new Date().toISOString()
-    };
+    } as ChangeRequest & { _mappings?: any[] };
+    
+    // Preserve _mappings if present (for Phase 3 mappings)
+    if ((cr as any)._mappings) {
+      (fullCR as any)._mappings = (cr as any)._mappings;
+    }
 
-    // Save CR file
+    // Save CR file (this will include _mappings in the JSON)
     await this.saveChangeRequest(fullCR);
 
     return fullCR;
@@ -186,6 +193,142 @@ export class ProjectStore {
       throw new Error(`CR ${crId} is already applied`);
     }
 
+    // Check if this is a layered project
+    const isLayered = await this.isLayered();
+
+    if (isLayered) {
+      await this.applyChangeRequestToLayeredGraph(crId, cr);
+    } else {
+      await this.applyChangeRequestToLegacyGraph(crId, cr);
+    }
+  }
+
+  /**
+   * Apply ChangeRequest to layered graph
+   */
+  private async applyChangeRequestToLayeredGraph(crId: string, cr: ChangeRequest): Promise<void> {
+    const layeredGraph = await this.loadLayeredGraph();
+
+    // Distribute new nodes to correct layers
+    for (const node of cr.new_nodes) {
+      if (node.id.startsWith('epic-') || node.id.startsWith('story-')) {
+        layeredGraph.narrativeLayer.nodes.set(node.id, node as any);
+      } else if (node.id.startsWith('cap-')) {
+        layeredGraph.structureLayer.featureGraph.nodes.set(node.id, node as any);
+      } else if (node.id.startsWith('screen-') || node.id.startsWith('action-')) {
+        layeredGraph.structureLayer.flowGraph.nodes.set(node.id, node as any);
+      } else if (node.id.startsWith('req-') || node.id.startsWith('task-')) {
+        layeredGraph.specificationLayer.nodes.set(node.id, node as any);
+      }
+    }
+
+    // Modify existing nodes
+    for (const modification of cr.modified_nodes) {
+      // Find node in any layer
+      let node = layeredGraph.narrativeLayer.nodes.get(modification.node_id) ||
+                 layeredGraph.structureLayer.featureGraph.nodes.get(modification.node_id) ||
+                 layeredGraph.structureLayer.flowGraph.nodes.get(modification.node_id) ||
+                 layeredGraph.specificationLayer.nodes.get(modification.node_id);
+      
+      if (!node) continue;
+
+      // Create new version
+      const newNode = {
+        ...node,
+        ...modification.changes,
+        version: modification.new_version,
+        updated_at: new Date().toISOString()
+      };
+
+      // Update in correct layer
+      if (node.id.startsWith('epic-') || node.id.startsWith('story-')) {
+        layeredGraph.narrativeLayer.nodes.set(node.id, newNode as any);
+      } else if (node.id.startsWith('cap-')) {
+        layeredGraph.structureLayer.featureGraph.nodes.set(node.id, newNode as any);
+      } else if (node.id.startsWith('screen-') || node.id.startsWith('action-')) {
+        layeredGraph.structureLayer.flowGraph.nodes.set(node.id, newNode as any);
+      } else if (node.id.startsWith('req-') || node.id.startsWith('task-')) {
+        layeredGraph.specificationLayer.nodes.set(node.id, newNode as any);
+      }
+    }
+
+    // Distribute dependencies to correct layers
+    for (const dep of cr.new_dependencies) {
+      const fromNode = layeredGraph.narrativeLayer.nodes.get(dep.from_id) ||
+                       layeredGraph.structureLayer.featureGraph.nodes.get(dep.from_id) ||
+                       layeredGraph.structureLayer.flowGraph.nodes.get(dep.from_id) ||
+                       layeredGraph.specificationLayer.nodes.get(dep.from_id);
+      
+      if (!fromNode) continue;
+
+      // Determine which layer this dependency belongs to
+      if (fromNode.id.startsWith('epic-') || fromNode.id.startsWith('story-')) {
+        layeredGraph.narrativeLayer.edges.set(dep.id, dep);
+      } else if (fromNode.id.startsWith('cap-')) {
+        layeredGraph.structureLayer.featureGraph.edges.set(dep.id, dep);
+      } else if (fromNode.id.startsWith('screen-') || fromNode.id.startsWith('action-')) {
+        layeredGraph.structureLayer.flowGraph.edges.set(dep.id, dep);
+      } else if (fromNode.id.startsWith('req-') || fromNode.id.startsWith('task-')) {
+        layeredGraph.specificationLayer.edges.set(dep.id, dep);
+      }
+    }
+
+    // Handle mappings if present (stored in _mappings field for initial CR)
+    const crWithExtras = cr as any;
+    if (crWithExtras._mappings && Array.isArray(crWithExtras._mappings)) {
+      for (const mapping of crWithExtras._mappings) {
+        layeredGraph.structureLayer.mappings.set(mapping.id, mapping);
+      }
+    }
+
+    // Handle cross-layer dependencies if present (stored in _crossLayerDeps field for initial CR)
+    if (crWithExtras._crossLayerDeps && Array.isArray(crWithExtras._crossLayerDeps)) {
+      for (const crossDep of crWithExtras._crossLayerDeps) {
+        layeredGraph.crossLayerDependencies.set(crossDep.id, crossDep);
+      }
+    }
+
+    // Validate layered graph
+    const validation = DAGValidator.validateLayeredGraph(layeredGraph);
+    if (!validation.valid) {
+      throw new Error(validation.error || 'Validation failed');
+    }
+
+    // Increment version
+    const metadata = await this.loadMetadata();
+    const nextVersion = VersionUtil.incrementVersion(metadata.current_version);
+
+    layeredGraph.version = nextVersion;
+    layeredGraph.metadata.last_modified = new Date().toISOString();
+
+    // Save updated layered graph
+    await this.saveLayeredGraph(layeredGraph);
+    await this.saveLayeredVersion(nextVersion, layeredGraph);
+
+    // Update metadata
+    metadata.current_version = nextVersion;
+    metadata.last_modified = new Date().toISOString();
+
+    // If this is CR-000, extract project name from Epic
+    if (crId === 'CR-000' && cr.new_nodes.length > 0) {
+      const epic = cr.new_nodes.find(n => n.id.startsWith('epic-'));
+      if (epic && 'name' in epic) {
+        metadata.name = epic.name;
+      }
+    }
+
+    await this.saveMetadata(metadata);
+
+    // Mark CR as applied
+    cr.status = CRStatus.Applied;
+    cr.applied_at = new Date().toISOString();
+    await this.saveChangeRequest(cr);
+  }
+
+  /**
+   * Apply ChangeRequest to legacy graph
+   */
+  private async applyChangeRequestToLegacyGraph(crId: string, cr: ChangeRequest): Promise<void> {
     const graph = await this.loadGraph();
 
     // Add new nodes
@@ -322,6 +465,339 @@ export class ProjectStore {
    */
   async delete(): Promise<void> {
     await fs.remove(this.basePath);
+  }
+
+  // ========================================
+  // Layered Graph Methods (Phase 1)
+  // ========================================
+
+  /**
+   * Load layered graph (multi-file structure)
+   * Supports both Phase 1 (single structure.json) and Phase 2+ (structure-features.json + structure-flows.json)
+   */
+  async loadLayeredGraph(): Promise<LayeredGraph> {
+    const narrativePath = path.join(this.basePath, 'layers', 'narrative.json');
+    const structureFeaturesPath = path.join(this.basePath, 'layers', 'structure-features.json');
+    const structureFlowsPath = path.join(this.basePath, 'layers', 'structure-flows.json');
+    const structurePath = path.join(this.basePath, 'layers', 'structure.json'); // Phase 1 compatibility
+    const specificationPath = path.join(this.basePath, 'layers', 'specification.json');
+    const mappingsPath = path.join(this.basePath, 'layers', 'mappings.json');
+    const crossLayerDepsPath = path.join(this.basePath, 'cross-layer-deps.json');
+    const metadataPath = path.join(this.basePath, 'metadata.json');
+
+    // Load all layer files
+    const narrativeData = await fs.readJSON(narrativePath);
+    const specificationData = await fs.readJSON(specificationPath);
+    const crossLayerDepsData = await fs.readJSON(crossLayerDepsPath);
+    const metadata = await fs.readJSON(metadataPath);
+    
+    // Load mappings (with backward compatibility)
+    let mappingsData: Record<string, any> = {};
+    if (await fs.pathExists(mappingsPath)) {
+      mappingsData = await fs.readJSON(mappingsPath);
+    }
+
+    // Check if Phase 2 dual graph structure exists
+    const hasDualGraphs = await fs.pathExists(structureFeaturesPath) && await fs.pathExists(structureFlowsPath);
+    
+    let structureFeatureData: { nodes: Record<string, any>; edges: Record<string, any> };
+    let structureFlowData: { nodes: Record<string, any>; edges: Record<string, any> };
+
+    if (hasDualGraphs) {
+      // Phase 2: Load dual graphs
+      structureFeatureData = await fs.readJSON(structureFeaturesPath);
+      structureFlowData = await fs.readJSON(structureFlowsPath);
+    } else {
+      // Phase 1: Load single structure.json and split (backward compatibility)
+      const structureData = await fs.readJSON(structurePath);
+      // Migrate: split capabilities into feature graph, create empty flow graph
+      structureFeatureData = {
+        nodes: structureData.nodes || {},
+        edges: structureData.edges || {}
+      };
+      structureFlowData = {
+        nodes: {},
+        edges: {}
+      };
+    }
+
+    // Convert to layered graph structure
+    return {
+      version: metadata.current_version,
+      narrativeLayer: {
+        nodes: new Map(Object.entries(narrativeData.nodes || {})),
+        edges: new Map(Object.entries(narrativeData.edges || {}))
+      },
+      structureLayer: {
+        featureGraph: {
+          nodes: new Map(Object.entries(structureFeatureData.nodes || {})),
+          edges: new Map(Object.entries(structureFeatureData.edges || {}))
+        },
+        flowGraph: {
+          nodes: new Map(Object.entries(structureFlowData.nodes || {})),
+          edges: new Map(Object.entries(structureFlowData.edges || {}))
+        },
+        mappings: new Map(Object.entries(mappingsData || {}))
+      },
+      specificationLayer: {
+        nodes: new Map(Object.entries(specificationData.nodes || {})),
+        edges: new Map(Object.entries(specificationData.edges || {}))
+      },
+      crossLayerDependencies: new Map(Object.entries(crossLayerDepsData || {})),
+      metadata: {
+        created_at: metadata.created_at,
+        last_modified: metadata.last_modified
+      }
+    };
+  }
+
+  /**
+   * Save layered graph (multi-file structure)
+   * All layers are saved atomically
+   * Phase 2: Uses structure-features.json and structure-flows.json
+   */
+  async saveLayeredGraph(graph: LayeredGraph): Promise<void> {
+    const narrativePath = path.join(this.basePath, 'layers', 'narrative.json');
+    const structureFeaturesPath = path.join(this.basePath, 'layers', 'structure-features.json');
+    const structureFlowsPath = path.join(this.basePath, 'layers', 'structure-flows.json');
+    const specificationPath = path.join(this.basePath, 'layers', 'specification.json');
+    const mappingsPath = path.join(this.basePath, 'layers', 'mappings.json');
+    const crossLayerDepsPath = path.join(this.basePath, 'cross-layer-deps.json');
+
+    // Ensure layers directory exists
+    await fs.ensureDir(path.join(this.basePath, 'layers'));
+
+    // Convert Maps to plain objects for JSON storage
+    const narrativeData = {
+      nodes: Object.fromEntries(graph.narrativeLayer.nodes),
+      edges: Object.fromEntries(graph.narrativeLayer.edges)
+    };
+
+    const structureFeatureData = {
+      nodes: Object.fromEntries(graph.structureLayer.featureGraph.nodes),
+      edges: Object.fromEntries(graph.structureLayer.featureGraph.edges)
+    };
+
+    const structureFlowData = {
+      nodes: Object.fromEntries(graph.structureLayer.flowGraph.nodes),
+      edges: Object.fromEntries(graph.structureLayer.flowGraph.edges)
+    };
+
+    const specificationData = {
+      nodes: Object.fromEntries(graph.specificationLayer.nodes),
+      edges: Object.fromEntries(graph.specificationLayer.edges)
+    };
+
+    const mappingsData = Object.fromEntries(graph.structureLayer.mappings);
+
+    const crossLayerDepsData = Object.fromEntries(graph.crossLayerDependencies);
+
+    // Save all files atomically
+    await Promise.all([
+      fs.writeJSON(narrativePath, narrativeData, { spaces: 2 }),
+      fs.writeJSON(structureFeaturesPath, structureFeatureData, { spaces: 2 }),
+      fs.writeJSON(structureFlowsPath, structureFlowData, { spaces: 2 }),
+      fs.writeJSON(specificationPath, specificationData, { spaces: 2 }),
+      fs.writeJSON(mappingsPath, mappingsData, { spaces: 2 }),
+      fs.writeJSON(crossLayerDepsPath, crossLayerDepsData, { spaces: 2 })
+    ]);
+
+    // Remove old structure.json if it exists (migration from Phase 1)
+    const oldStructurePath = path.join(this.basePath, 'layers', 'structure.json');
+    if (await fs.pathExists(oldStructurePath)) {
+      await fs.remove(oldStructurePath);
+    }
+  }
+
+  /**
+   * Save layered graph version snapshot
+   * Phase 2: Uses structure-features.json and structure-flows.json
+   */
+  async saveLayeredVersion(version: string, graph: LayeredGraph): Promise<void> {
+    const versionDir = path.join(this.basePath, 'versions', version);
+    await fs.ensureDir(versionDir);
+
+    const narrativePath = path.join(versionDir, 'narrative.json');
+    const structureFeaturesPath = path.join(versionDir, 'structure-features.json');
+    const structureFlowsPath = path.join(versionDir, 'structure-flows.json');
+    const specificationPath = path.join(versionDir, 'specification.json');
+    const mappingsPath = path.join(versionDir, 'mappings.json');
+    const crossLayerDepsPath = path.join(versionDir, 'cross-layer-deps.json');
+
+    // Convert Maps to plain objects
+    const narrativeData = {
+      nodes: Object.fromEntries(graph.narrativeLayer.nodes),
+      edges: Object.fromEntries(graph.narrativeLayer.edges)
+    };
+
+    const structureFeatureData = {
+      nodes: Object.fromEntries(graph.structureLayer.featureGraph.nodes),
+      edges: Object.fromEntries(graph.structureLayer.featureGraph.edges)
+    };
+
+    const structureFlowData = {
+      nodes: Object.fromEntries(graph.structureLayer.flowGraph.nodes),
+      edges: Object.fromEntries(graph.structureLayer.flowGraph.edges)
+    };
+
+    const specificationData = {
+      nodes: Object.fromEntries(graph.specificationLayer.nodes),
+      edges: Object.fromEntries(graph.specificationLayer.edges)
+    };
+
+    const mappingsData = Object.fromEntries(graph.structureLayer.mappings);
+
+    const crossLayerDepsData = Object.fromEntries(graph.crossLayerDependencies);
+
+    // Save all version files
+    await Promise.all([
+      fs.writeJSON(narrativePath, narrativeData, { spaces: 2 }),
+      fs.writeJSON(structureFeaturesPath, structureFeatureData, { spaces: 2 }),
+      fs.writeJSON(structureFlowsPath, structureFlowData, { spaces: 2 }),
+      fs.writeJSON(specificationPath, specificationData, { spaces: 2 }),
+      fs.writeJSON(mappingsPath, mappingsData, { spaces: 2 }),
+      fs.writeJSON(crossLayerDepsPath, crossLayerDepsData, { spaces: 2 })
+    ]);
+  }
+
+  /**
+   * Load a specific version of the layered graph
+   * Supports both Phase 1 and Phase 2 structures
+   */
+  async loadLayeredVersion(version: string): Promise<LayeredGraph> {
+    const versionDir = path.join(this.basePath, 'versions', version);
+
+    const narrativePath = path.join(versionDir, 'narrative.json');
+    const structureFeaturesPath = path.join(versionDir, 'structure-features.json');
+    const structureFlowsPath = path.join(versionDir, 'structure-flows.json');
+    const structurePath = path.join(versionDir, 'structure.json'); // Phase 1 compatibility
+    const specificationPath = path.join(versionDir, 'specification.json');
+    const mappingsPath = path.join(versionDir, 'mappings.json');
+    const crossLayerDepsPath = path.join(versionDir, 'cross-layer-deps.json');
+
+    // Load all layer files
+    const narrativeData = await fs.readJSON(narrativePath);
+    const specificationData = await fs.readJSON(specificationPath);
+    const crossLayerDepsData = await fs.readJSON(crossLayerDepsPath);
+    
+    // Load mappings (with backward compatibility)
+    let mappingsData: Record<string, any> = {};
+    if (await fs.pathExists(mappingsPath)) {
+      mappingsData = await fs.readJSON(mappingsPath);
+    }
+
+    // Check if Phase 2 dual graph structure exists
+    const hasDualGraphs = await fs.pathExists(structureFeaturesPath) && await fs.pathExists(structureFlowsPath);
+    
+    let structureFeatureData: { nodes: Record<string, any>; edges: Record<string, any> };
+    let structureFlowData: { nodes: Record<string, any>; edges: Record<string, any> };
+
+    if (hasDualGraphs) {
+      // Phase 2: Load dual graphs
+      structureFeatureData = await fs.readJSON(structureFeaturesPath);
+      structureFlowData = await fs.readJSON(structureFlowsPath);
+    } else {
+      // Phase 1: Load single structure.json and split
+      const structureData = await fs.readJSON(structurePath);
+      structureFeatureData = {
+        nodes: structureData.nodes || {},
+        edges: structureData.edges || {}
+      };
+      structureFlowData = {
+        nodes: {},
+        edges: {}
+      };
+    }
+
+    // Convert to layered graph structure
+    return {
+      version: version,
+      narrativeLayer: {
+        nodes: new Map(Object.entries(narrativeData.nodes || {})),
+        edges: new Map(Object.entries(narrativeData.edges || {}))
+      },
+      structureLayer: {
+        featureGraph: {
+          nodes: new Map(Object.entries(structureFeatureData.nodes || {})),
+          edges: new Map(Object.entries(structureFeatureData.edges || {}))
+        },
+        flowGraph: {
+          nodes: new Map(Object.entries(structureFlowData.nodes || {})),
+          edges: new Map(Object.entries(structureFlowData.edges || {}))
+        },
+        mappings: new Map(Object.entries(mappingsData || {}))
+      },
+      specificationLayer: {
+        nodes: new Map(Object.entries(specificationData.nodes || {})),
+        edges: new Map(Object.entries(specificationData.edges || {}))
+      },
+      crossLayerDependencies: new Map(Object.entries(crossLayerDepsData || {})),
+      metadata: {
+        created_at: '',
+        last_modified: ''
+      }
+    };
+  }
+
+  /**
+   * Initialize project with layered graph structure
+   */
+  async initializeLayered(name?: string): Promise<void> {
+    await fs.ensureDir(this.basePath);
+    await fs.ensureDir(path.join(this.basePath, 'change-requests'));
+    await fs.ensureDir(path.join(this.basePath, 'versions'));
+    await fs.ensureDir(path.join(this.basePath, 'layers'));
+
+    // Create initial metadata
+    const metadata: ProjectMetadata = {
+      project_id: this.projectId,
+      name: name || '',
+      created_at: new Date().toISOString(),
+      last_modified: new Date().toISOString(),
+      current_version: 'v0'
+    };
+
+    await this.saveMetadata(metadata);
+
+    // Create empty layered graph (Phase 2: dual graphs)
+    const emptyLayeredGraph: LayeredGraph = {
+      version: 'v0',
+      narrativeLayer: {
+        nodes: new Map(),
+        edges: new Map()
+      },
+      structureLayer: {
+        featureGraph: {
+          nodes: new Map(),
+          edges: new Map()
+        },
+        flowGraph: {
+          nodes: new Map(),
+          edges: new Map()
+        },
+        mappings: new Map()
+      },
+      specificationLayer: {
+        nodes: new Map(),
+        edges: new Map()
+      },
+      crossLayerDependencies: new Map(),
+      metadata: {
+        created_at: new Date().toISOString(),
+        last_modified: new Date().toISOString()
+      }
+    };
+
+    await this.saveLayeredGraph(emptyLayeredGraph);
+    await this.saveLayeredVersion('v0', emptyLayeredGraph);
+  }
+
+  /**
+   * Check if project uses layered graph structure
+   */
+  async isLayered(): Promise<boolean> {
+    const narrativePath = path.join(this.basePath, 'layers', 'narrative.json');
+    return await fs.pathExists(narrativePath);
   }
 
   // Helper methods

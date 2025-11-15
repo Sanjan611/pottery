@@ -22,7 +22,7 @@ import type { BamlRuntime, BamlCtxManager, ClientRegistry, Image, Audio, Pdf, Vi
 import { toBamlError, HTTPRequest } from "@boundaryml/baml"
 import type { Checked, Check } from "./types"
 import type * as types from "./types"
-import type {ChangeRequestPlan, Dependency, DependencyType, Feature, FeatureModification, ImpactAnalysis, ProductIntent, RiskLevel, SubIntent, Task, TaskModification, TaskType, TaskUpdate, UXSpec} from "./types"
+import type {Capability, ChangeRequestPlan, Dependency, DependencyType, Epic, Feature, FeatureModification, FlowAction, FlowActionTriggerType, FlowScreen, FlowToCapabilityMapping, ImpactAnalysis, LayeredProject, NarrativeLayer, ProductIntent, RiskLevel, SpecificationLayer, StructureLayer, SubIntent, Task, TaskModification, TaskType, TaskUpdate, TechnicalRequirement, TechnicalRequirementType, UXSpec, UserStory} from "./types"
 import type TypeBuilder from "./type_builder"
 
 type BamlCallOptions = {
@@ -60,6 +60,56 @@ export class AsyncHttpRequest {
     }
   }
   
+  async CreateLayeredProject(
+      user_intent: string,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateLayeredProject",
+        {
+          "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        false,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  async CreateNarrativeLayer(
+      user_intent: string,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateNarrativeLayer",
+        {
+          "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        false,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
   async CreateProjectStructure(
       user_intent: string,
       __baml_options__?: BamlCallOptions
@@ -73,6 +123,56 @@ export class AsyncHttpRequest {
         "CreateProjectStructure",
         {
           "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        false,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  async CreateSpecificationLayer(
+      structure: types.StructureLayer,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateSpecificationLayer",
+        {
+          "structure": structure
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        false,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  async CreateStructureLayer(
+      narrative: types.NarrativeLayer,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateStructureLayer",
+        {
+          "narrative": narrative
         },
         this.ctxManager.cloneContext(),
         __baml_options__?.tb?.__tb(),
@@ -141,6 +241,56 @@ export class AsyncHttpStreamRequest {
     }
   }
   
+  async CreateLayeredProject(
+      user_intent: string,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateLayeredProject",
+        {
+          "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        true,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  async CreateNarrativeLayer(
+      user_intent: string,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateNarrativeLayer",
+        {
+          "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        true,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
   async CreateProjectStructure(
       user_intent: string,
       __baml_options__?: BamlCallOptions
@@ -154,6 +304,56 @@ export class AsyncHttpStreamRequest {
         "CreateProjectStructure",
         {
           "user_intent": user_intent
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        true,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  async CreateSpecificationLayer(
+      structure: types.StructureLayer,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateSpecificationLayer",
+        {
+          "structure": structure
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        true,
+        env
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  async CreateStructureLayer(
+      narrative: types.NarrativeLayer,
+      __baml_options__?: BamlCallOptions
+  ): Promise<HTTPRequest> {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return await this.runtime.buildRequest(
+        "CreateStructureLayer",
+        {
+          "narrative": narrative
         },
         this.ctxManager.cloneContext(),
         __baml_options__?.tb?.__tb(),

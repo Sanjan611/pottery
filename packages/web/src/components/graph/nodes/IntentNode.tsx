@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
-import { ProductIntent } from '@pottery/core';
+import type { ProductIntent } from '@pottery/core/types';
 
 interface IntentNodeProps {
   data: ProductIntent;

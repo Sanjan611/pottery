@@ -19,17 +19,32 @@ import { SubIntentNode } from './nodes/SubIntentNode';
 import { FeatureNode } from './nodes/FeatureNode';
 import { TaskNode } from './nodes/TaskNode';
 import { UXSpecNode } from './nodes/UXSpecNode';
+import { EpicNode } from './nodes/EpicNode';
+import { UserStoryNode } from './nodes/UserStoryNode';
+import { CapabilityNode } from './nodes/CapabilityNode';
+import { FlowScreenNode } from './nodes/FlowScreenNode';
+import { FlowActionNode } from './nodes/FlowActionNode';
+import { TechnicalRequirementNode } from './nodes/TechnicalRequirementNode';
 import { GraphControls, NodeTypeFilter } from './GraphControls';
+import { LayerSelector } from './LayerSelector';
+import { GraphSelector, GraphType } from './GraphSelector';
 import { NodeDetail } from './NodeDetail';
 import { useGraph } from '@/lib/hooks/useGraph';
 import { convertToReactFlow } from '@/lib/graph-utils';
+import { Layer } from '@pottery/core/types';
 
 interface GraphViewProps {
   projectId: string;
 }
 
 function GraphViewInner({ projectId }: GraphViewProps) {
-  const { graph, isLoading, error } = useGraph(projectId);
+  const [selectedLayer, setSelectedLayer] = useState<Layer | 'all'>('all');
+  const [selectedGraph, setSelectedGraph] = useState<GraphType>('both');
+  const { graph, isLoading, error } = useGraph(
+    projectId, 
+    selectedLayer, 
+    selectedLayer === Layer.Structure ? selectedGraph : undefined
+  );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<NodeTypeFilter>({
@@ -37,7 +52,13 @@ function GraphViewInner({ projectId }: GraphViewProps) {
     subintent: true,
     feature: true,
     task: true,
-    uxspec: true
+    uxspec: true,
+    epic: true,
+    userstory: true,
+    capability: true,
+    flowscreen: true,
+    flowaction: true,
+    technicalrequirement: true
   });
 
   // Define custom node types
@@ -48,6 +69,12 @@ function GraphViewInner({ projectId }: GraphViewProps) {
       feature: FeatureNode,
       task: TaskNode,
       uxspec: UXSpecNode,
+      epic: EpicNode,
+      userstory: UserStoryNode,
+      capability: CapabilityNode,
+      flowscreen: FlowScreenNode,
+      flowaction: FlowActionNode,
+      technicalrequirement: TechnicalRequirementNode,
     }),
     []
   );
@@ -55,24 +82,25 @@ function GraphViewInner({ projectId }: GraphViewProps) {
   // Convert graph data to React Flow format
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     if (!graph) return { nodes: [], edges: [] };
-    return convertToReactFlow(graph.nodes, graph.edges);
-  }, [graph]);
+    // Determine graph type for structure layer
+    const graphType: 'feature' | 'flow' | 'both' = 
+      selectedLayer === Layer.Structure ? selectedGraph : 'both';
+    return convertToReactFlow(graph.nodes, graph.edges, graphType);
+  }, [graph, selectedLayer, selectedGraph]);
 
   // Apply filters and search
   const filteredNodes = useMemo(() => {
     return initialNodes.filter(node => {
-      // Type filter
-      if (!filters[node.type as keyof typeof filters]) return false;
+      // Type filter - check if node type is enabled
+      const nodeTypeKey = node.type as keyof typeof filters;
+      if (nodeTypeKey && filters[nodeTypeKey] === false) return false;
 
       // Search filter
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
-        const nodeName = node.data.name?.toLowerCase() || '';
+        const nodeName = (node.data.name || node.data.narrative || node.data.specification || node.data.description || '').toLowerCase();
         const nodeId = node.id.toLowerCase();
-        const nodeDescription = node.data.description?.toLowerCase() || '';
-        return nodeName.includes(searchLower) ||
-               nodeId.includes(searchLower) ||
-               nodeDescription.includes(searchLower);
+        return nodeName.includes(searchLower) || nodeId.includes(searchLower);
       }
 
       return true;
@@ -151,6 +179,12 @@ function GraphViewInner({ projectId }: GraphViewProps) {
               case 'feature': return '#16a34a';
               case 'task': return '#ea580c';
               case 'uxspec': return '#db2777';
+              case 'epic': return '#9333ea';
+              case 'userstory': return '#a855f7';
+              case 'capability': return '#16a34a';
+              case 'flowscreen': return '#3b82f6';
+              case 'flowaction': return '#8b5cf6';
+              case 'technicalrequirement': return '#ea580c';
               default: return '#6b7280';
             }
           }}
@@ -159,10 +193,24 @@ function GraphViewInner({ projectId }: GraphViewProps) {
         />
 
         <Panel position="top-left">
-          <GraphControls
-            onSearchChange={setSearchQuery}
-            onFilterChange={setFilters}
-          />
+          <div className="flex flex-col gap-2">
+            {graph?.isLayered && (
+              <LayerSelector
+                selectedLayer={selectedLayer}
+                onLayerChange={setSelectedLayer}
+              />
+            )}
+            {graph?.isLayered && selectedLayer === Layer.Structure && (
+              <GraphSelector
+                selectedGraph={selectedGraph}
+                onGraphChange={setSelectedGraph}
+              />
+            )}
+            <GraphControls
+              onSearchChange={setSearchQuery}
+              onFilterChange={setFilters}
+            />
+          </div>
         </Panel>
       </ReactFlow>
 

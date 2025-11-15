@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import type { ProjectMetadata } from '@pottery/core';
+import type { ProjectMetadata } from '@pottery/core/types';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 

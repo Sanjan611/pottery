@@ -20,7 +20,7 @@ $ pnpm add @boundaryml/baml
 
 import type { Image, Audio, Pdf, Video } from "@boundaryml/baml"
 import type { Checked, Check } from "./types"
-import type {  ChangeRequestPlan,  Dependency,  DependencyType,  Feature,  FeatureModification,  ImpactAnalysis,  ProductIntent,  RiskLevel,  SubIntent,  Task,  TaskModification,  TaskType,  TaskUpdate,  UXSpec } from "./types"
+import type {  Capability,  ChangeRequestPlan,  Dependency,  DependencyType,  Epic,  Feature,  FeatureModification,  FlowAction,  FlowActionTriggerType,  FlowScreen,  FlowToCapabilityMapping,  ImpactAnalysis,  LayeredProject,  NarrativeLayer,  ProductIntent,  RiskLevel,  SpecificationLayer,  StructureLayer,  SubIntent,  Task,  TaskModification,  TaskType,  TaskUpdate,  TechnicalRequirement,  TechnicalRequirementType,  UXSpec,  UserStory } from "./types"
 import type * as types from "./types"
 
 /******************************************************************************
@@ -36,6 +36,11 @@ export interface StreamState<T> {
 }
 
 export namespace partial_types {
+    export interface Capability {
+      name?: string | null
+      description?: string | null
+      linkedUserStoryNames: string[]
+    }
     export interface ChangeRequestPlan {
       description?: string | null
       new_features: Feature[]
@@ -48,6 +53,11 @@ export namespace partial_types {
       from_description?: string | null
       to_description?: string | null
       type?: types.DependencyType | null
+    }
+    export interface Epic {
+      name?: string | null
+      description?: string | null
+      userStoryNames: string[]
     }
     export interface Feature {
       name?: string | null
@@ -62,16 +72,53 @@ export namespace partial_types {
       new_tasks: Task[]
       updated_tasks: TaskUpdate[]
     }
+    export interface FlowAction {
+      name?: string | null
+      description?: string | null
+      triggerType?: types.FlowActionTriggerType | null
+      parentScreenName?: string | null
+      nextScreenName?: string | null
+      linkedCapabilityNames: string[]
+    }
+    export interface FlowScreen {
+      name?: string | null
+      description?: string | null
+      actionNames: string[]
+    }
+    export interface FlowToCapabilityMapping {
+      flowActionName?: string | null
+      capabilityNames: string[]
+      rationale?: string | null
+    }
     export interface ImpactAnalysis {
       affected_features: string[]
       affected_tasks: string[]
       reasoning?: string | null
       risk_level?: types.RiskLevel | null
     }
+    export interface LayeredProject {
+      narrativeLayer?: NarrativeLayer | null
+      structureLayer?: StructureLayer | null
+      specificationLayer?: SpecificationLayer | null
+    }
+    export interface NarrativeLayer {
+      epics: Epic[]
+      userStories: UserStory[]
+    }
     export interface ProductIntent {
       name?: string | null
       description?: string | null
       sub_intents: SubIntent[]
+    }
+    export interface SpecificationLayer {
+      technicalRequirements: TechnicalRequirement[]
+      tasks: Task[]
+    }
+    export interface StructureLayer {
+      capabilities: Capability[]
+      flowScreens: FlowScreen[]
+      flowActions: FlowAction[]
+      mappings: FlowToCapabilityMapping[]
     }
     export interface SubIntent {
       name?: string | null
@@ -93,8 +140,19 @@ export namespace partial_types {
       new_description?: string | null
       reason?: string | null
     }
+    export interface TechnicalRequirement {
+      type?: types.TechnicalRequirementType | null
+      specification?: string | null
+      linkedCapabilityNames: string[]
+    }
     export interface UXSpec {
       experience_goal?: string | null
       design_refs: string[]
+    }
+    export interface UserStory {
+      narrative?: string | null
+      acceptanceCriteria: string[]
+      epicName?: string | null
+      linkedCapabilityNames: string[]
     }
 }

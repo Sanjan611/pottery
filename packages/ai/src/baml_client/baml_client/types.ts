@@ -54,6 +54,11 @@ export enum DependencyType {
   Supersedes = "Supersedes",
 }
 
+export enum FlowActionTriggerType {
+  User = "User",
+  System = "System",
+}
+
 export enum RiskLevel {
   Low = "Low",
   Medium = "Medium",
@@ -65,6 +70,21 @@ export enum TaskType {
   Frontend = "Frontend",
   Test = "Test",
   Infrastructure = "Infrastructure",
+}
+
+export enum TechnicalRequirementType {
+  Performance = "Performance",
+  Security = "Security",
+  Scalability = "Scalability",
+  Reliability = "Reliability",
+  Other = "Other",
+}
+
+export interface Capability {
+  name: string
+  description: string
+  linkedUserStoryNames: string[]
+  
 }
 
 export interface ChangeRequestPlan {
@@ -81,6 +101,13 @@ export interface Dependency {
   from_description: string
   to_description: string
   type: DependencyType
+  
+}
+
+export interface Epic {
+  name: string
+  description: string
+  userStoryNames: string[]
   
 }
 
@@ -101,6 +128,30 @@ export interface FeatureModification {
   
 }
 
+export interface FlowAction {
+  name: string
+  description: string
+  triggerType: FlowActionTriggerType
+  parentScreenName: string
+  nextScreenName?: string | null
+  linkedCapabilityNames: string[]
+  
+}
+
+export interface FlowScreen {
+  name: string
+  description: string
+  actionNames: string[]
+  
+}
+
+export interface FlowToCapabilityMapping {
+  flowActionName: string
+  capabilityNames: string[]
+  rationale: string
+  
+}
+
 export interface ImpactAnalysis {
   affected_features: string[]
   affected_tasks: string[]
@@ -109,10 +160,37 @@ export interface ImpactAnalysis {
   
 }
 
+export interface LayeredProject {
+  narrativeLayer: NarrativeLayer
+  structureLayer: StructureLayer
+  specificationLayer: SpecificationLayer
+  
+}
+
+export interface NarrativeLayer {
+  epics: Epic[]
+  userStories: UserStory[]
+  
+}
+
 export interface ProductIntent {
   name: string
   description: string
   sub_intents: SubIntent[]
+  
+}
+
+export interface SpecificationLayer {
+  technicalRequirements: TechnicalRequirement[]
+  tasks: Task[]
+  
+}
+
+export interface StructureLayer {
+  capabilities: Capability[]
+  flowScreens: FlowScreen[]
+  flowActions: FlowAction[]
+  mappings: FlowToCapabilityMapping[]
   
 }
 
@@ -144,8 +222,23 @@ export interface TaskUpdate {
   
 }
 
+export interface TechnicalRequirement {
+  type: TechnicalRequirementType
+  specification: string
+  linkedCapabilityNames: string[]
+  
+}
+
 export interface UXSpec {
   experience_goal: string
   design_refs: string[]
+  
+}
+
+export interface UserStory {
+  narrative: string
+  acceptanceCriteria: string[]
+  epicName: string
+  linkedCapabilityNames: string[]
   
 }

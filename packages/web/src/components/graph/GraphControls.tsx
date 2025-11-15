@@ -10,6 +10,12 @@ export interface NodeTypeFilter {
   feature: boolean;
   task: boolean;
   uxspec: boolean;
+  epic: boolean;
+  userstory: boolean;
+  capability: boolean;
+  flowscreen: boolean;
+  flowaction: boolean;
+  technicalrequirement: boolean;
 }
 
 interface GraphControlsProps {
@@ -25,7 +31,13 @@ export function GraphControls({ onSearchChange, onFilterChange }: GraphControlsP
     subintent: true,
     feature: true,
     task: true,
-    uxspec: true
+    uxspec: true,
+    epic: true,
+    userstory: true,
+    capability: true,
+    flowscreen: true,
+    flowaction: true,
+    technicalrequirement: true
   });
 
   const handleSearch = (value: string) => {
@@ -63,7 +75,13 @@ export function GraphControls({ onSearchChange, onFilterChange }: GraphControlsP
               onChange={() => handleFilterToggle(type as keyof NodeTypeFilter)}
               className="rounded cursor-pointer"
             />
-            <span className="text-sm capitalize">{type.replace('intent', ' intent')}</span>
+            <span className="text-sm capitalize">
+              {type.replace('intent', ' intent')
+                   .replace('userstory', 'user story')
+                   .replace('flowscreen', 'flow screen')
+                   .replace('flowaction', 'flow action')
+                   .replace('technicalrequirement', 'technical requirement')}
+            </span>
           </label>
         ))}
       </div>

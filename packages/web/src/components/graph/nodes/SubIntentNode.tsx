@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
-import { SubIntent } from '@pottery/core';
+import type { SubIntent } from '@pottery/core/types';
 
 interface SubIntentNodeProps {
   data: SubIntent;
